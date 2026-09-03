@@ -1,6 +1,6 @@
 # Demo script — Folio e-books
 
-All services on this MacBook via Docker Compose.
+All services on this MacBook via Docker Compose. System diagram: [architecture.md](architecture.md).
 
 | What | URL |
 |---|---|
