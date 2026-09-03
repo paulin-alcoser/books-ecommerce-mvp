@@ -6,6 +6,7 @@ import argparse
 import json
 import statistics
 import time
+import socket
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,7 +21,7 @@ def one_search(url: str, timeout: float) -> tuple[int, float]:
             resp.read()
     except urllib.error.HTTPError as exc:
         status = exc.code
-    except urllib.error.URLError:
+    except (urllib.error.URLError, socket.timeout, TimeoutError):
         status = 0
     return status, (time.perf_counter() - started) * 1000
 

@@ -117,32 +117,49 @@ Also glance at `docker stats` — ES heap sits near 1GB; Search API stays small.
 
 ---
 
-## 5. Load-test summary (baseline we already ran)
+## 5. Load-test summary and saturation
 
-**Setup:** 60 seconds · 20 workers · `q=Harry Potter` · `n=10`
+**Healthy baseline:** 60s · 20 workers · 5s timeout · `q=Harry Potter`
 
 | Metric | Value |
 |---|---|
 | Requests | 10,120 |
 | Throughput | 168.7 rps |
-| Errors | 0 (error rate 0%) |
-| p50 | 83 ms |
-| p95 | 296 ms |
-| p99 | 495 ms |
-| max | 779 ms |
-| Search API RSS | ~43 MB / 256 MB |
-| ES heap / container | ~950 MB / 1 GB |
+| Errors | 0 |
+| p50 / p95 / p99 | 83 / 296 / 495 ms |
+| Search API | ~43 MB, ~40 worker threads (PIDs stuck at 41) |
+| ES container | ~950 MB / 1 GB, CPU mostly idle |
 
-**What this means**
+**Ramp (25s, 5s timeout) — latency saturates, no HTTP 5xx**
 
-- At ~170 rps the read path stayed healthy (no 5xx).
-- p95 ~300 ms is the number to quote; p99 ~500 ms.
-- This is **not** the saturation point yet. Saturation is the concurrency/RPS where p95 explodes or errors appear.
-- Next demo move: `CONCURRENCY=50 ./scripts/load-search.sh` (then 80) until it breaks. Likely bottleneck: ES heap/CPU on the laptop, not Search API RAM.
+| Concurrency | rps | p50 | p95 | errors |
+|---|---|---|---|---|
+| 20 (60s) | 169 | 83 ms | 296 ms | 0 |
+| 50 | 337 | 126 ms | 295 ms | 0 |
+| 80 | 334 | 216 ms | 408 ms | 0 |
+| 120 | 385 | 296 ms | 503 ms | 0 |
+| 200 | 361 | 512 ms | 923 ms | 0 |
+| 400 | 425 | 901 ms | 1.1 s | 0 |
+| 800 | 383 | 2.0 s | 2.9 s | 0 |
 
-**What we would change after it breaks**
+Throughput **peaks ~350–425 rps around 80–120 concurrent clients**, then latency grows with concurrency (queueing). That is the saturation point for capacity.
 
-- Raise ES heap 512m → 1g (needs a higher `mem_limit`).
-- Cache hot queries (`Harry Potter`) in Redis.
-- Scale Search API behind a tiny proxy (Compose port 8001 only maps one replica today).
-- Drop indexer `refresh=wait_for` if we also ingest under load.
+**Hard failure (1s client timeout = “users leave”)**
+
+| Concurrency | rps | error rate | what failed |
+|---|---|---|---|
+| 200 | 306 | **18%** | timeouts (`status=0`) |
+| 400 | 411 | **67%** | timeouts |
+| 800 | 543 | **97%** | timeouts |
+
+**What breaks**
+
+- Search API uses sync handlers; default thread pool is ~40 (container PIDs stay at 41). Extra clients wait in line.
+- ES heap is tight (93%) but CPU is idle — we did **not** crash ES; we queued in the API.
+- No 5xx from the app. Failure is **latency / client timeout**, not a process death.
+
+**What we would change**
+
+- Run Search API with more uvicorn workers or `async` + httpx AsyncClient so we are not capped at ~40 threads.
+- Cache `Harry Potter` in Redis (hot query).
+- Then raise ES heap if the API is no longer the bottleneck.

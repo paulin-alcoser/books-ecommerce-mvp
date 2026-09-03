@@ -302,3 +302,13 @@ Prometheus `prom/prometheus:v2.54.1` on `http://localhost:9090` scrapes `search-
 Not saturated yet (no errors). Next: raise `--concurrency` until p95/errors explode.
 
 Repeat: `docker compose up -d --build` then `./scripts/load-search.sh`. Watch http://localhost:9090.
+
+### 2026-09-03 — saturation found
+
+Ramped `load-search.py` from 20 → 800 concurrency.
+
+- **Capacity saturation:** ~**350–425 rps** at 80–120 clients. Past that, rps flat, p95 300ms → 2.9s (800 clients, 5s timeout, still 0 HTTP errors).
+- **User-visible failure:** 1s timeout → **18% errors at 200 clients**, 67% at 400, 97% at 800.
+- **Bottleneck:** Search API sync + ~40-thread pool (PIDs=41). ES heap 93% but CPU idle.
+
+`load-search.py` now treats `socket.timeout` as `status=0` so the 1s SLO run finishes.
