@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Folio — e-book search</title>
+  <style>
+    :root {
+      --ink: #1c140c;
+      --paper: #f4ead7;
+      --card: #fffaf0;
+      --rule: #d8c7a8;
+      --accent: #8b2e1f;
+      --muted: #6d5c45;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+      background: var(--paper);
+      color: var(--ink);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      border-bottom: 3px double var(--ink);
+      background: #2a1c12;
+      color: #f4ead7;
+    }
+    header h1 { margin: 0; font-size: 1.4rem; letter-spacing: 0.08em; }
+    header p { margin: 0.15rem 0 0; font-size: 0.85rem; color: #d8c7a8; }
+    main { max-width: 820px; margin: 0 auto; padding: 1.5rem; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--rule);
+      padding: 1rem 1.1rem;
+      margin-bottom: 1.2rem;
+    }
+    label { display: block; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.25rem; }
+    input, textarea, button {
+      font: inherit;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      border: 1px solid var(--rule);
+      background: #fff;
+      margin-bottom: 0.6rem;
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: 0;
+      padding: 0.45rem 0.9rem;
+      cursor: pointer;
+    }
+    button.ghost { background: transparent; color: inherit; border: 1px solid currentColor; }
+    .row { display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 140px; }
+    .auth { font-size: 0.9rem; text-align: right; }
+    .auth form { display: flex; gap: 0.4rem; align-items: center; }
+    .auth input { margin: 0; width: 110px; }
+    .hint { color: var(--muted); font-size: 0.85rem; }
+    .result {
+      border-top: 1px solid var(--rule);
+      padding: 0.8rem 0;
+    }
+    .result h3 { margin: 0 0 0.25rem; }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .hidden { display: none; }
+    .status { min-height: 1.2rem; font-size: 0.9rem; color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>FOLIO</h1>
+      <p>Search the catalog. Editors can add titles.</p>
+    </div>
+    <div class="auth" id="auth-box"></div>
+  </header>
+  <main>
+    <section class="panel">
+      <form id="search-form">
+        <label for="q">Find a book</label>
+        <div class="row">
+          <input id="q" name="q" placeholder="Harry Potter" required>
+          <button type="submit">Search</button>
+        </div>
+      </form>
+      <p class="hint" id="search-meta"></p>
+      <div id="results"></div>
+    </section>
+
+    <section class="panel hidden" id="add-panel">
+      <h2>Add a book</h2>
+      <p class="hint">Queued to Redis, then indexed. Search may take a second.</p>
+      <form id="add-form">
+        <label for="title">Title</label>
+        <input id="title" required>
+        <label for="genre">Genre</label>
+        <input id="genre" placeholder="fantasy">
+        <label for="description">Description</label>
+        <textarea id="description" rows="3"></textarea>
+        <button type="submit">Queue for index</button>
+      </form>
+      <p class="status" id="add-status"></p>
+    </section>
+  </main>
+
+  <script>
+    const authBox = document.getElementById("auth-box");
+    const addPanel = document.getElementById("add-panel");
+    const results = document.getElementById("results");
+    const searchMeta = document.getElementById("search-meta");
+    const addStatus = document.getElementById("add-status");
+    let me = { authenticated: false };
+
+    async function api(path, options = {}) {
+      const headers = { ...(options.headers || {}) };
+      if (options.body && !headers["Content-Type"]) {
+        headers["Content-Type"] = "application/json";
+      }
+      const res = await fetch(path, { credentials: "same-origin", ...options, headers });
+      const text = await res.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch { data = { detail: text }; }
+      if (!res.ok) {
+        const detail = data && data.detail ? data.detail : res.statusText;
+        throw new Error(detail);
+      }
+      return data;
+    }
+
+    function renderAuth() {
+      if (me.authenticated) {
+        authBox.innerHTML = `<div>${me.username} · ${me.role} <button class="ghost" id="logout-btn" type="button">Log out</button></div>`;
+        document.getElementById("logout-btn").onclick = logout;
+        addPanel.classList.toggle("hidden", me.role !== "editor");
+      } else {
+        authBox.innerHTML = `
+          <form id="login-form">
+            <input name="username" placeholder="editor" autocomplete="username" required>
+            <input name="password" type="password" placeholder="editorpass" autocomplete="current-password" required>
+            <button type="submit">Log in</button>
+          </form>
+          <p class="hint">demo: editor / editorpass · shopper / shopperpass</p>`;
+        document.getElementById("login-form").onsubmit = login;
+        addPanel.classList.add("hidden");
+      }
+    }
+
+    async function refreshMe() {
+      me = await api("/me");
+      renderAuth();
+    }
+
+    async function login(event) {
+      event.preventDefault();
+      const form = event.target;
+      try {
+        await api("/login", {
+          method: "POST",
+          body: JSON.stringify({
+            username: form.username.value,
+            password: form.password.value,
+          }),
+        });
+        await refreshMe();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function logout() {
+      await api("/logout", { method: "POST" });
+      await refreshMe();
+    }
+
+    document.getElementById("search-form").onsubmit = async (event) => {
+      event.preventDefault();
+      const q = document.getElementById("q").value;
+      results.innerHTML = "";
+      try {
+        const data = await api(`/search?q=${encodeURIComponent(q)}&n=10`);
+        searchMeta.textContent = `${data.total} match(es) in ${data.took_ms} ms`;
+        results.innerHTML = data.candidates.map((book) => `
+          <article class="result">
+            <h3>${escapeHtml(book.title)}</h3>
+            <div class="meta">${escapeHtml(book.genre)} · score ${book.score?.toFixed(2) ?? "—"}</div>
+            <p>${escapeHtml(book.description)}</p>
+          </article>
+        `).join("") || "<p class='hint'>No titles matched.</p>";
+      } catch (err) {
+        searchMeta.textContent = err.message;
+      }
+    };
+
+    document.getElementById("add-form").onsubmit = async (event) => {
+      event.preventDefault();
+      addStatus.textContent = "Queuing…";
+      try {
+        const data = await api("/books", {
+          method: "POST",
+          body: JSON.stringify({
+            title: document.getElementById("title").value,
+            genre: document.getElementById("genre").value,
+            description: document.getElementById("description").value,
+          }),
+        });
+        addStatus.textContent = `Queued ${data.id}`;
+        event.target.reset();
+      } catch (err) {
+        addStatus.textContent = err.message;
+      }
+    };
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[ch]));
+    }
+
+    refreshMe();
+  </script>
+</body>
+</html>

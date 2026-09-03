@@ -1,0 +1,102 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: books-es
+    environment:
+      discovery.type: single-node
+      cluster.name: books-ecom
+      xpack.security.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.ml.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE 'yellow|green'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: books-redis
+    ports:
+      - "6379:6379"
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  storage-api:
+    build: ./storage-api
+    container_name: books-storage-api
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      QUEUE_KEY: books:ingest
+      SESSION_TTL_SECONDS: "3600"
+    ports:
+      - "8000:8000"
+    mem_limit: 256m
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  search-api:
+    build: ./search-api
+    environment:
+      ES_URL: http://elasticsearch:9200
+      ES_INDEX: books
+      DEFAULT_N: "10"
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_URL: http://storage-api:8000
+      DEMO_USERS: editor:editorpass:editor,shopper:shopperpass:shopper
+      SESSION_TTL_SECONDS: "3600"
+    ports:
+      - "8001:8001"
+    mem_limit: 256m
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage-api:
+        condition: service_started
+
+  indexer:
+    build: ./indexer
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      QUEUE_KEY: books:ingest
+      ES_URL: http://elasticsearch:9200
+      ES_INDEX: books
+    mem_limit: 256m
+    depends_on:
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: books-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2h
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    mem_limit: 256m
+    depends_on:
+      search-api:
+        condition: service_started
+
+volumes:
+  esdata:

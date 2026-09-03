@@ -1,0 +1,112 @@
+[
+  {
+    "title": "Harry Potter and the Sorcerer's Stone",
+    "genre": "fantasy",
+    "description": "the boy who lived begins at hogwarts and discovers he is a wizard"
+  },
+  {
+    "title": "Harry Potter and the Chamber of Secrets",
+    "genre": "fantasy",
+    "description": "a dark force opens the chamber and the heir of slytherin returns"
+  },
+  {
+    "title": "Harry Potter and the Prisoner of Azkaban",
+    "genre": "fantasy",
+    "description": "sirius black escapes azkaban and the dementors come to hogwarts"
+  },
+  {
+    "title": "Harry Potter and the Goblet of Fire",
+    "genre": "fantasy",
+    "description": "the triwizard tournament and the return of lord voldemort"
+  },
+  {
+    "title": "Harry Potter and the Order of the Phoenix",
+    "genre": "fantasy",
+    "description": "dumbledore's army forms while the ministry denies the dark lord's return"
+  },
+  {
+    "title": "Harry Potter and the Half-Blood Prince",
+    "genre": "fantasy",
+    "description": "harry studies a mysterious potions book and learns about horcruxes"
+  },
+  {
+    "title": "Harry Potter and the Deathly Hallows",
+    "genre": "fantasy",
+    "description": "the hunt for horcruxes and the battle of hogwarts"
+  },
+  {
+    "title": "The Hobbit",
+    "genre": "fantasy",
+    "description": "there and back again, a tale by J R R Tolkien of bilbo and the dragon"
+  },
+  {
+    "title": "The Fellowship of the Ring",
+    "genre": "fantasy",
+    "description": "frodo leaves the shire with the one ring in J R R Tolkien's first volume"
+  },
+  {
+    "title": "The Two Towers",
+    "genre": "fantasy",
+    "description": "the fellowship is broken and war reaches rohan and isengard"
+  },
+  {
+    "title": "The Return of the King",
+    "genre": "fantasy",
+    "description": "the last battle for middle-earth and the end of the one ring"
+  },
+  {
+    "title": "The Name of the Wind",
+    "genre": "fantasy",
+    "description": "kvothe, the red-haired musician, tells the story of his youth"
+  },
+  {
+    "title": "A Game of Thrones",
+    "genre": "fantasy",
+    "description": "houses of westeros play a deadly game for the iron throne"
+  },
+  {
+    "title": "The Lion, the Witch and the Wardrobe",
+    "genre": "fantasy",
+    "description": "four siblings enter narnia through a wardrobe and meet aslan"
+  },
+  {
+    "title": "The Golden Compass",
+    "genre": "fantasy",
+    "description": "lyra travels north with her daemon to rescue kidnapped children"
+  },
+  {
+    "title": "Mistborn: The Final Empire",
+    "genre": "fantasy",
+    "description": "vin learns allomancy and joins a crew to overthrow the lord ruler"
+  },
+  {
+    "title": "The Way of Kings",
+    "genre": "fantasy",
+    "description": "kaladin and shallan struggle on the storm-swept world of roshar"
+  },
+  {
+    "title": "Dune",
+    "genre": "science fiction",
+    "description": "paul atreides and the spice of arrakis reshape an empire"
+  },
+  {
+    "title": "Neuromancer",
+    "genre": "science fiction",
+    "description": "a washed-up console cowboy is hired for one last run in cyberspace"
+  },
+  {
+    "title": "Pride and Prejudice",
+    "genre": "romance",
+    "description": "elizabeth bennet and mr darcy misunderstand each other in regency england"
+  },
+  {
+    "title": "To Kill a Mockingbird",
+    "genre": "fiction",
+    "description": "scout finch watches her father defend a man in a small alabama town"
+  },
+  {
+    "title": "The Great Gatsby",
+    "genre": "fiction",
+    "description": "jay gatsby throws lavish parties across the bay from daisy buchanan"
+  }
+]
